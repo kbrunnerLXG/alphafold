@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG CUDA=11.1.1
-FROM nvidia/cuda:${CUDA}-cudnn8-runtime-ubuntu18.04
+ARG CUDA=11.8.0
+FROM nvidia/cuda:${CUDA}-cudnn8-runtime-ubuntu22.04
 # FROM directive resets ARGS, so we specify again (the value is retained if
 # previously set).
 ARG CUDA
@@ -34,6 +34,13 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get autoremove -y \
     && apt-get clean
+# Install CUDA11.8    
+CMD ["wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin"]
+CMD ["sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600"]
+CMD ["wget https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda-repo-ubuntu2204-11-8-local_11.8.0-520.61.05-1_amd64.deb"]
+CMD ["sudo dpkg -i cuda-repo-ubuntu2204-11-8-local_11.8.0-520.61.05-1_amd64.deb"]
+CMD ["apt-key add /var/cuda-repo-ubuntu2204-11-8-local/D95DBBE2.pub"]
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y cuda
 
 # Compile HHsuite from source.
 RUN git clone --branch v3.3.0 https://github.com/soedinglab/hh-suite.git /tmp/hh-suite \
@@ -53,10 +60,11 @@ RUN wget -q -P /tmp \
 
 # Install conda packages.
 ENV PATH="/opt/conda/bin:$PATH"
-RUN conda install -qy conda==4.13.0 \
+# RUN conda install -qy conda==4.13.0 \
+RUN conda install -qy conda=23.1.0 \
     && conda install -y -c conda-forge \
       openmm=7.7.0 \
-      cudatoolkit==${CUDA_VERSION} \
+      # cudatoolkit==${CUDA_VERSION} \
       pdbfixer \
       pip \
       python=3.8 \
@@ -69,10 +77,9 @@ RUN wget -q -P /app/alphafold/alphafold/common/ \
 # Install pip packages.
 RUN pip3 install --upgrade pip --no-cache-dir \
     && pip3 install -r /app/alphafold/requirements.txt --no-cache-dir \
-    && pip3 install --upgrade --no-cache-dir \
-      jax==0.3.25 \
-      jaxlib==0.3.25+cuda11.cudnn805 \
-      -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    # && pip3 install --upgrade --no-cache-dir \
+      # jax==0.3.25 \
+    && pip3 install https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.4.11+cuda11.cudnn86-cp38-cp38-manylinux2014_x86_64.whl
 
 # Add SETUID bit to the ldconfig binary so that non-root users can run it.
 RUN chmod u+s /sbin/ldconfig.real
